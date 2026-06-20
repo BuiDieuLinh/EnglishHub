@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using EnglishHub.Application.DTOs;
 using EnglishHub.Application.Interfaces;
+using FluentValidation;
 
 namespace EnglishHub.API.Controllers;
 
@@ -9,10 +10,17 @@ namespace EnglishHub.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IValidator<RegisterRequest> _registerValidator;
+    private readonly IValidator<LoginRequest> _loginValidator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(
+        IAuthService authService,
+        IValidator<RegisterRequest> registerValidator,
+        IValidator<LoginRequest> loginValidator)
     {
         _authService = authService;
+        _registerValidator = registerValidator;
+        _loginValidator = loginValidator;
     }
 
     /// <summary>Register a new user</summary>
@@ -22,6 +30,10 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        var validationResult = await _registerValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.Errors.Select(x => x.ErrorMessage));
+
         try
         {
             var result = await _authService.RegisterAsync(request);
@@ -39,6 +51,10 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        var validationResult = await _loginValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.Errors.Select(x => x.ErrorMessage));
+
         try
         {
             var result = await _authService.LoginAsync(request);
